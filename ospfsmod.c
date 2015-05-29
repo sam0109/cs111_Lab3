@@ -956,7 +956,7 @@ remove_block(ospfs_inode_t *oi)
 	uint32_t indirect_position = indir_index(n);
 	uint32_t indirect2_position = indir2_index(n);
 
-	if(n <= 1) {			
+	if(n <= 0) {			
 		return -EIO;		
 	}
 
@@ -1255,6 +1255,10 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	if(count > oi->oi_size - *f_pos)
 	{
 		retval = change_size(oi, count + *f_pos);
+		if (retval < 0) {
+			printk("change_size error\n");
+			goto done;
+		}
 	}
 
 	// Copy data block by block
