@@ -613,6 +613,7 @@ allocate_block(void)
 			bitvector_clear(vector, i);
 			return i;
 		}
+		i++;
 	}
 	return 0;
 }
