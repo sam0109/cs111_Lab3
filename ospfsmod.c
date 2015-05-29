@@ -1255,10 +1255,6 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	if(count > oi->oi_size - *f_pos)
 	{
 		retval = change_size(oi, count + *f_pos);
-		if (retval < 0) {
-			printk("change_size error\n");
-			goto done;
-		}
 	}
 
 	// Copy data block by block
@@ -1437,6 +1433,7 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 {
 	/* EXERCISE: Your code here. */
 	ospfs_direntry_t *new_entry = NULL;
+	ospfs_inode_t *file_oi = NULL;
 	
 	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)
 	{
@@ -1448,9 +1445,27 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 		return -EEXIST;
 	}
 	
+	new_entry = create_blank_direntry(ospfs_inode(dir->i_ino));
 	
+	if(IS_ERR(new_entry))
+	{
+		return PTR_ERR(new_entry);
+	}
 	
-	return -EINVAL;
+	memcpy(new_entry->od_name,dst_dentry->d_name.name, dst_dentry->d_name.len);
+	new_entry->od_name[dst_dentry->d_name.len] = '\0';
+	
+	file_oi = ospfs_inode(src_dentry->d_inode->i_ino);
+	
+	if(file_oi == NULL)
+	{
+		return EIO;
+	}
+	
+	file_oi->oi_nlink += 1;
+	 new_entry->od_ino = src_dentry->d_inode->i_ino;
+	
+	return 0;
 }
 
 static uint32_t
