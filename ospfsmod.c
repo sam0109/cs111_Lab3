@@ -1277,16 +1277,16 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 		/* EXERCISE: Your code here */
 		
 		uint32_t pos_adj = *f_pos % OSPFS_BLKSIZE;
-		if(count - amount > OSPFS_BLKSIZE - pos_adj)
-		{
-			n = OSPFS_BLKSIZE - pos_adj;
-		}
-		else
+		
+		n = OSPFS_BLKSIZE - pos_adj;
+		data = data + pos_adj;
+		
+		if((n + amount) > count)
 		{
 			n = count - amount;
 		}
 			
-		if(copy_from_user(data + pos_adj, buffer, n) != 0)
+		if(copy_from_user(data, buffer, n) != 0)
 		{
 			retval = -EFAULT;
 			goto done;		
