@@ -613,6 +613,7 @@ allocate_block(void)
 			bitvector_clear(vector, i);
 			return i;
 		}
+		i++;
 	}
 	return 0;
 }
@@ -1251,7 +1252,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	// size to accomodate the request.  (Use change_size().)
 	/* EXERCISE: Your code here */
 
-	if(count < oi->oi_size - *f_pos)
+	if(count > oi->oi_size - *f_pos)
 	{
 		retval = change_size(oi, count + *f_pos);
 	}
