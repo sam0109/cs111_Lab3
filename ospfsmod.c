@@ -579,9 +579,11 @@ allocate_block(void)
 static void
 free_block(uint32_t blockno)
 {
+	uint32_t *vector = ospfs_block(OSPFS_FREEMAP_BLK);
+
 	if(blockno <= 2)
 		return;
-	uint32_t *vector = ospfs_block(OSPFS_FREEMAP_BLK);
+
 	bitvector_set(vector, blockno);
 }
 
@@ -618,7 +620,8 @@ free_block(uint32_t blockno)
 static int32_t
 indir2_index(uint32_t b)
 {
-	// Your code here.
+	if(b >= OSPFS_NDIRECT + OSPFS_NINDIRECT)
+		return 0;
 	return -1;
 }
 
@@ -637,8 +640,12 @@ indir2_index(uint32_t b)
 static int32_t
 indir_index(uint32_t b)
 {
-	// Your code here.
-	return -1;
+	if(b < OSPFS_NDIRECT)
+		return -1;
+	else if (b < OSPFS_NDIRECT + OSPFS_NINDIRECT)
+		return 0;
+	else 
+		return (b - (OSPFS_NDIRECT + OSPFS_NINDIRECT)) / OSPFS_NINDIRECT;
 }
 
 
@@ -697,10 +704,170 @@ add_block(ospfs_inode_t *oi)
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 
 	// keep track of allocations to free in case of -ENOSPC
-	uint32_t *allocated[2] = { 0, 0 };
+	uint32_t allocated[3] = { 0, 0, 0 };
+	
+	uint32_t indirect_position = indir_index(n);
+	uint32_t indirect2_position = indir2_index(n);
 
-	/* EXERCISE: Your code here */
-	return -EIO; // Replace this line
+	if(n >= OSPFS_MAXFILEBLKS) {			
+		return -ENOSPC;		
+	}
+
+	if(indirect2_position > 0) {	//is there a doubly indirect block?
+		if((n - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 0) {	//is the last indirect block full?
+			
+			//allocate a new indirect block and put it in the doubly indirect block
+			allocated[0] = allocate_block();
+
+			if(allocated[0] == 0) {		//error!
+				return -ENOSPC;
+			}
+			
+			memset(((uint32_t*)ospfs_block(allocated[0])), 0, OSPFS_BLKSIZE);
+			((uint32_t*)ospfs_block(oi->oi_indirect2))[indirect2_position - 1] = allocated[0];
+
+			//allocate a new data block and put it in the new indirect block
+			allocated[1] = allocate_block();
+
+			if(allocated[1] == 0) {		//error! free the indirect block also;
+				free_block(allocated[0]);
+				return -ENOSPC;
+			}
+
+			memset(ospfs_block(allocated[1]), 0, OSPFS_BLKSIZE);
+			((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[indirect2_position - 1]))[0] = allocated[1];
+		}
+		else {
+			//allocate a new data block and put it in the last indirect block
+			allocated[0] = allocate_block();
+
+			if(allocated[0] == 0) {		//error! free the indirect block also;
+				return -ENOSPC;
+			}
+
+			memset(ospfs_block(allocated[0]), 0, OSPFS_BLKSIZE);
+			((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[indirect2_position - 1]))[(n - OSPFS_NDIRECT) % OSPFS_NINDIRECT] = allocated[0];
+		}
+	}
+
+	else {
+		if(indirect_position == 0) {
+			if((n - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 0) {
+				//allocate a new doubly indirect block
+
+				allocated[0] = allocate_block();
+
+				if(allocated[0] == 0) {		//error!
+					return -ENOSPC;
+				}
+
+				memset(((uint32_t*)ospfs_block(allocated[0])), 0, OSPFS_BLKSIZE);
+				oi->oi_indirect2 = allocated[0];
+
+				//allocate a new indirect block and put it in the new doubly indirect block
+				allocated[1] = allocate_block();
+
+				if(allocated[1] == 0) {		//error! Free the doubly indirect block also
+					free_block(allocated[1]);
+					return -ENOSPC;
+				}
+			
+				memset(((uint32_t*)ospfs_block(allocated[1])), 0, OSPFS_BLKSIZE);
+				((uint32_t*)ospfs_block(oi->oi_indirect2))[0] = allocated[1];
+
+				//allocate a new data block and put it in the new indirect block
+				allocated[2] = allocate_block();
+
+				if(allocated[2] == 0) {		//error! Free the indirect and doubly indirect blocks also
+					free_block(allocated[0]);
+					free_block(allocated[1]);
+					return -ENOSPC;
+				}
+
+				memset(ospfs_block(allocated[2]), 0, OSPFS_BLKSIZE);
+				((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0] = allocated[2];
+			}
+			
+			else {
+				//allocate a new data block and put it in the last indirect block
+				allocated[0] = allocate_block();
+
+				if(allocated[0] == 0) {		//error! free the indirect block also;
+					return -ENOSPC;
+				}
+
+				memset(((uint32_t*)ospfs_block(allocated[0])), 0, OSPFS_BLKSIZE);
+				((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[indirect2_position - 1]))[(n - OSPFS_NDIRECT) % OSPFS_NINDIRECT] = allocated[0];
+			}
+		}
+		
+		else {
+			if(n >= OSPFS_NDIRECT) {
+				//allocate a new indirect block and put it in the inode
+				allocated[0] = allocate_block();
+
+				if(allocated[0] == 0) {		//error!
+					return -ENOSPC;
+				}
+
+				memset(((uint32_t*)ospfs_block(allocated[0])), 0, OSPFS_BLKSIZE);
+				oi->oi_indirect = allocated[0];
+
+				//allocate a new data block and put it in the new indirect block
+				allocated[1] = allocate_block();
+
+				if(allocated[1] == 0) {		//error! free the indirect block also;
+					free_block(allocated[0]);
+					return -ENOSPC;
+				}
+
+				memset(((uint32_t*)ospfs_block(allocated[1])), 0, OSPFS_BLKSIZE);
+				((uint32_t*)ospfs_block(oi->oi_indirect))[0] = allocated[1];
+			}
+
+			else {
+				//allocate a new data block and put it in the inode
+				allocated[0] = allocate_block();
+
+				if(allocated[0] == 0) {		//error!
+					return -ENOSPC;
+				}
+			
+				memset(((uint32_t*)ospfs_block(allocated[0])), 0, OSPFS_BLKSIZE);
+				oi->oi_direct[n] = allocated[0];
+			}
+		}
+	}
+	
+	oi->oi_size = oi->oi_size + OSPFS_BLKSIZE;
+	return 0;
+	/*
+	is there a doubly indirect block?
+	if yes:
+		is the last indirect block full?
+		if yes:
+			allocate a new indirect block and put it in the doubly indirect block
+			allocate a new data block and put it in the new indirect block
+		if no:
+			allocate a new data block and put it in the last indirect block
+	if no:
+		is there an indirect block?
+		if yes:
+			is it full?
+			if yes:
+				allocate a doubly indirect block
+				allocate a new indirect block and put it in the new doubly indirect block
+				allocate a new data block and put it in the new indirect block
+			if no:
+				allocate a new data block and put it in the indirect block
+		if no:
+			is the inode full?
+			if yes:
+				allocate a new indirect block and put it in the doubly indirect block
+				allocate a new data block and put it in the new indirect block
+			if no:
+				allocate a new data block and put it in the inode
+	*/
 }
 
 
@@ -731,9 +898,96 @@ remove_block(ospfs_inode_t *oi)
 {
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
+	
+	uint32_t indirect_position = indir_index(n);
+	uint32_t indirect2_position = indir2_index(n);
 
-	/* EXERCISE: Your code here */
-	return -EIO; // Replace this line
+	if(n <= 1) {			
+		return -EIO;		
+	}
+
+	if(indirect2_position > 0) {	//is there a doubly indirect block?
+		if((n - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 1) {	//is this the last block in the indirect block?
+			if(n - OSPFS_NDIRECT - OSPFS_NINDIRECT == 1) {		//is this the last indirect block in the doubly indirect block?
+
+				free_block(((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0]);	//free the block
+				((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0] = 0;	//clear the pointer
+
+				free_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]);	//free the indirect block
+				((uint32_t*)ospfs_block(oi->oi_indirect2))[0] = 0;	//clear the pointer
+
+				free_block(oi->oi_indirect2);	//free the doubly indirect block
+				oi->oi_indirect2 = 0;	//clear the pointer
+			}
+			else {
+				free_block(((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0]);	//free the block
+				((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0] = 0;	//clear the pointer
+
+				free_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]);	//free the indirect block
+				((uint32_t*)ospfs_block(oi->oi_indirect2))[0] = 0;	//clear the pointer
+			}
+		}
+		
+		else {
+			free_block(((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0]);	//free the block
+			((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0] = 0;	//clear the pointer
+		}
+	}
+
+	else {
+		if(indirect_position == 0) {	//is there an indirect block?
+
+			if(n - OSPFS_NDIRECT == 1) {	//is this the last block in the indirect block?
+
+				free_block(((uint32_t*)ospfs_block(oi->oi_indirect))[0]);	//free the block
+				((uint32_t*)ospfs_block(oi->oi_indirect))[0] = 0;	//clear the pointer
+
+				free_block(oi->oi_indirect);	//free the indirect block
+				oi->oi_indirect = 0;	//clear the pointer
+			}
+			
+			else {
+				free_block(((uint32_t*)ospfs_block(oi->oi_indirect))[0]);	//free the block
+				((uint32_t*)ospfs_block(oi->oi_indirect))[0] = 0;	//clear the pointer
+			}
+		}
+		
+		else {
+			free_block(oi->oi_direct[n]);	//free the block
+			oi->oi_direct[n] = 0;	//clear the pointer
+		}
+	}
+	
+	oi->oi_size = oi->oi_size - OSPFS_BLKSIZE;
+	return 0;
+
+	/*
+	is there a doubly indirect block?
+	if yes:
+		Is this the last block in the indirect block?
+		if yes:
+			Is this the last indirect block in the doubly indirect block?
+			if yes:
+				free this block
+				free the indirect block
+				free the doubly indirect block
+			if no:
+				free this block
+				free the indirect block
+		if no:
+			free this block
+	if no:
+		Is there an indirect block?
+		if yes:
+			Is this the last block in the indirect block?
+			if yes:
+				free this block
+				free the indirect block
+			if no:
+				free this block
+		if no:
+			free this block
+	*/
 }
 
 
@@ -780,17 +1034,25 @@ change_size(ospfs_inode_t *oi, uint32_t new_size)
 	int r = 0;
 
 	while (ospfs_size2nblocks(oi->oi_size) < ospfs_size2nblocks(new_size)) {
-	        /* EXERCISE: Your code here */
-		return -EIO; // Replace this line
+	        r = add_block(oi);
+		if (r == -ENOSPC) {
+			new_size = old_size;
+		}
+		
+		//if there was some error return
+		else if (r == -EIO) {
+			return r;
+		}
 	}
 	while (ospfs_size2nblocks(oi->oi_size) > ospfs_size2nblocks(new_size)) {
-	        /* EXERCISE: Your code here */
-		return -EIO; // Replace this line
+	        if(remove_block(oi) == -EIO)
+			return -EIO;
 	}
 
 	/* EXERCISE: Make sure you update necessary file meta data
 	             and return the proper value. */
-	return -EIO; // Replace this line
+	oi->oi_size = new_size;
+	return 0;
 }
 
 
