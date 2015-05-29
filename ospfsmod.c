@@ -760,14 +760,14 @@ add_block(ospfs_inode_t *oi)
 	// keep track of allocations to free in case of -ENOSPC
 	uint32_t allocated[3] = { 0, 0, 0 };
 	
-	uint32_t indirect_position = indir_index(n);
-	uint32_t indirect2_position = indir2_index(n);
+	int indirect_position = indir_index(n);
+	int indirect2_position = indir2_index(n);
 
 	if(n >= OSPFS_MAXFILEBLKS) {			
 		return -ENOSPC;		
 	}
 
-	if(indirect2_position > 0) {	//is there a doubly indirect block?
+	if(indirect2_position == 0) {	//is there a doubly indirect block?
 		if((n - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 0) {	//is the last indirect block full?
 			
 			//allocate a new indirect block and put it in the doubly indirect block
@@ -806,6 +806,7 @@ add_block(ospfs_inode_t *oi)
 
 	else {
 		if(indirect_position == 0) {
+			printk("adding an indirect block: %i \n", indirect_position);
 			if((n - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 0) {
 				//allocate a new doubly indirect block
 
@@ -856,6 +857,7 @@ add_block(ospfs_inode_t *oi)
 		}
 		
 		else {
+			printk("adding a direct block %d \n", n);
 			if(n >= OSPFS_NDIRECT) {
 				//allocate a new indirect block and put it in the inode
 				allocated[0] = allocate_block();
@@ -893,7 +895,7 @@ add_block(ospfs_inode_t *oi)
 		}
 	}
 	
-	oi->oi_size = oi->oi_size + OSPFS_BLKSIZE;
+	oi->oi_size = (n + 1) * OSPFS_BLKSIZE;
 	return 0;
 	/*
 	is there a doubly indirect block?
@@ -1012,7 +1014,7 @@ remove_block(ospfs_inode_t *oi)
 		}
 	}
 	
-	oi->oi_size = oi->oi_size - OSPFS_BLKSIZE;
+	oi->oi_size = (n - 1) * OSPFS_BLKSIZE;;
 	return 0;
 
 	/*
