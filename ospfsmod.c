@@ -1251,7 +1251,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	// size to accomodate the request.  (Use change_size().)
 	/* EXERCISE: Your code here */
 
-	if(count < oi->oi_size - *f_pos)
+	if(count > oi->oi_size - *f_pos)
 	{
 		retval = change_size(oi, count + *f_pos);
 	}
@@ -1428,8 +1428,23 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 //   EXERCISE: Complete this function.
 
 static int
-ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) {
+ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) 
+{
 	/* EXERCISE: Your code here. */
+	ospfs_direntry_t *new_entry = NULL;
+	
+	if (dst_dentry->d_name.len > OSPFS_MAXNAMELEN)
+	{
+		return -ENAMETOOLONG;
+	}
+	
+	if (find_direntry(ospfs_inode(dir->i_ino), dst_dentry->d_name.name, dst_dentry->d_name.len))
+	{
+		return -EEXIST;
+	}
+	
+	
+	
 	return -EINVAL;
 }
 
