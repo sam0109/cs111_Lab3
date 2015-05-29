@@ -1171,7 +1171,7 @@ ospfs_read(struct file *filp, char __user *buffer, size_t count, loff_t *f_pos)
 
 	// Make sure we don't read past the end of the file!
 	// Change 'count' so we never read past the end of the file.
-	if(f_pos + count > oi->oi_size) {
+	if(*f_pos + count > oi->oi_size) {
 		count = oi->oi_size - *f_pos;
 	}
 
