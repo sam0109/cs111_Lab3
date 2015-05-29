@@ -806,8 +806,7 @@ add_block(ospfs_inode_t *oi)
 
 	else {
 		if(indirect_position == 0) {
-			printk("adding an indirect block: %i \n", indirect_position);
-			if((n - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 0) {
+			if(n == OSPFS_NDIRECT + OSPFS_NINDIRECT) {
 				//allocate a new doubly indirect block
 
 				allocated[0] = allocate_block();
@@ -857,7 +856,6 @@ add_block(ospfs_inode_t *oi)
 		}
 		
 		else {
-			printk("adding a direct block %d \n", n);
 			if(n >= OSPFS_NDIRECT) {
 				//allocate a new indirect block and put it in the inode
 				allocated[0] = allocate_block();
@@ -955,16 +953,16 @@ remove_block(ospfs_inode_t *oi)
 	// current number of blocks in file
 	uint32_t n = ospfs_size2nblocks(oi->oi_size);
 	
-	uint32_t indirect_position = indir_index(n);
-	uint32_t indirect2_position = indir2_index(n);
+	int indirect_position = indir_index(n);
+	int indirect2_position = indir2_index(n);
 
 	if(n <= 0) {			
 		return -EIO;		
 	}
 
-	if(indirect2_position > 0) {	//is there a doubly indirect block?
-		if((n - OSPFS_NDIRECT) % OSPFS_NINDIRECT == 1) {	//is this the last block in the indirect block?
-			if(n - OSPFS_NDIRECT - OSPFS_NINDIRECT == 1) {		//is this the last indirect block in the doubly indirect block?
+	if(indirect2_position == 0) {	//is there a doubly indirect block?
+		if(n == OSPFS_NDIRECT + 1) {	//is this the last block in the indirect block?
+			if(n == OSPFS_NDIRECT + OSPFS_NINDIRECT + 1) {		//is this the last indirect block in the doubly indirect block?
 
 				free_block(((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0]);	//free the block
 				((uint32_t*)ospfs_block(((uint32_t*)ospfs_block(oi->oi_indirect2))[0]))[0] = 0;	//clear the pointer
@@ -1009,8 +1007,8 @@ remove_block(ospfs_inode_t *oi)
 		}
 		
 		else {
-			free_block(oi->oi_direct[n]);	//free the block
-			oi->oi_direct[n] = 0;	//clear the pointer
+			free_block(oi->oi_direct[n - 1]);	//free the block
+			oi->oi_direct[n - 1] = 0;	//clear the pointer
 		}
 	}
 	
@@ -1258,7 +1256,6 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	{
 		retval = change_size(oi, count + *f_pos);
 		if (retval < 0) {
-			printk("change_size error\n");
 			goto done;
 		}
 	}
