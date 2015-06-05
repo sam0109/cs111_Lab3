@@ -297,6 +297,7 @@ ospfs_fill_super(struct super_block *sb, void *data, int flags)
 	sb->s_blocksize_bits = OSPFS_BLKSIZE_BITS;
 	sb->s_magic = OSPFS_MAGIC;
 	sb->s_op = &ospfs_superblock_ops;
+	sb->nwrites_to_crash = -1;
 
 	if (!(root_inode = ospfs_mk_linux_inode(sb, OSPFS_ROOT_INO))
 	    || !(sb->s_root = d_alloc_root(root_inode))) {
