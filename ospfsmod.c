@@ -291,6 +291,7 @@ ospfs_mk_linux_inode(struct super_block *sb, ino_t ino)
 static int
 ospfs_fill_super(struct super_block *sb, void *data, int flags)
 {
+	ospfs_super->nwrites_to_crash = 20;
 
 	if (ospfs_super->nwrites_to_crash == 0){
 		return 0;
@@ -306,7 +307,6 @@ ospfs_fill_super(struct super_block *sb, void *data, int flags)
 	sb->s_blocksize_bits = OSPFS_BLKSIZE_BITS;
 	sb->s_magic = OSPFS_MAGIC;
 	sb->s_op = &ospfs_superblock_ops;
-	ospfs_super->nwrites_to_crash = 20;
 
 	if (!(root_inode = ospfs_mk_linux_inode(sb, OSPFS_ROOT_INO))
 	    || !(sb->s_root = d_alloc_root(root_inode))) {
@@ -1266,7 +1266,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	
 	if(ospfs_super->nwrites_to_crash == 0)
 	{
-		return retval;
+		return count;
 	}
 	else if(ospfs_super->nwrites_to_crash > 0)
 	{
