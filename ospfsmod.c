@@ -291,6 +291,15 @@ ospfs_mk_linux_inode(struct super_block *sb, ino_t ino)
 static int
 ospfs_fill_super(struct super_block *sb, void *data, int flags)
 {
+
+	if (ospfs_super->nwrites_to_crash == 0){
+		return retval;
+	}
+	
+	if (ospfs_super->nwrites_to_crash > 0){
+		ospfs_super->nwrites_to_crash -= 1;
+	}
+
 	struct inode *root_inode;
 
 	sb->s_blocksize = OSPFS_BLKSIZE;
@@ -553,6 +562,14 @@ ospfs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 static int
 ospfs_unlink(struct inode *dirino, struct dentry *dentry)
 {
+	if (ospfs_super->nwrites_to_crash == 0){
+		return 0;
+	}
+	
+	if (ospfs_super->nwrites_to_crash > 0){
+		ospfs_super->nwrites_to_crash -= 1;
+	}
+
 	ospfs_inode_t *oi = ospfs_inode(dentry->d_inode->i_ino);
 	ospfs_inode_t *dir_oi = ospfs_inode(dentry->d_parent->d_inode->i_ino);
 	int entry_off;
@@ -1123,6 +1140,14 @@ ospfs_notify_change(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	ospfs_inode_t *oi = ospfs_inode(inode->i_ino);
 	int retval = 0;
+	
+	if (ospfs_super->nwrites_to_crash == 0){
+		return retval;
+	}
+	
+	if (ospfs_super->nwrites_to_crash > 0){
+		ospfs_super->nwrites_to_crash -= 1;
+	}
 
 	if (attr->ia_valid & ATTR_SIZE) {
 		// We should not be able to change directory size
@@ -1609,6 +1634,14 @@ ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidat
 static int
 ospfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
 {
+	if (ospfs_super->nwrites_to_crash == 0){
+		return 0;
+	}
+	
+	if (ospfs_super->nwrites_to_crash > 0){
+		ospfs_super->nwrites_to_crash -= 1;
+	}
+
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
 
@@ -1650,6 +1683,13 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 
 	nd_set_link(nd, oi->oi_symlink);
 	return (void *) 0;
+}
+
+static void
+ospfs_set_nwrites_to_crash(int nwrites_to_crash)
+{
+	super_block->nwrites_to_crash = nwrites_to_crash;
+	return;
 }
 
 
@@ -1695,6 +1735,7 @@ static struct dentry_operations ospfs_dentry_ops = {
 };
 
 static struct super_operations ospfs_superblock_ops = {
+	.set_nwrites_to_crash = ospfs_set_nwrites_to_crash
 };
 
 
