@@ -1,6 +1,10 @@
 #ifndef OSPFS_H
 #define OSPFS_H
 // OSPFS Constants and Structure Definitions
+#include <linux/ioctl.h>
+#define IOC_MAGIC 'k'
+#define OSPFSIOCRASH _IO(IOC_MAGIC, 0)
+
 
 /*****************************************************************************
  * BLOCKS

@@ -37,6 +37,7 @@ ospfs.ko all: fsimg.c truncate always
 
 install: ospfs.ko
 	$(MAKE) -C $(KERNELPATH) M=$(shell pwd) modules_install
+	$(CC) -o ospfscrash ospfscrash.c
 
 fsimg.c: fs.img fsimgtoc
 	./fsimgtoc fs.img fsimg.c

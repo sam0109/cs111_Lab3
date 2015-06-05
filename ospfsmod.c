@@ -1714,7 +1714,7 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 }
 
 static void
-ospfs_set_nwrites_to_crash(int nwrites_to_crash)
+ospfs_set_nwrites_to_crash(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long nwrites_to_crash)
 {
 	super_block->nwrites_to_crash = nwrites_to_crash;
 	return;
@@ -1737,7 +1737,8 @@ static struct inode_operations ospfs_reg_inode_ops = {
 static struct file_operations ospfs_reg_file_ops = {
 	.llseek		= generic_file_llseek,
 	.read		= ospfs_read,
-	.write		= ospfs_write
+	.write		= ospfs_write,
+	.ioctl      = ospfs_set_nwrites_to_crash
 };
 
 static struct inode_operations ospfs_dir_inode_ops = {
@@ -1760,10 +1761,6 @@ static struct inode_operations ospfs_symlink_inode_ops = {
 
 static struct dentry_operations ospfs_dentry_ops = {
 	.d_delete	= ospfs_delete_dentry
-};
-
-static struct super_operations ospfs_superblock_ops = {
-	.set_nwrites_to_crash = ospfs_set_nwrites_to_crash
 };
 
 
