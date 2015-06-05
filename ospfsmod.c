@@ -1275,7 +1275,6 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	}
 	
 	size_t amount = 0;
-	printk("writes to failure: %i\n", ospfs_super->nwrites_to_crash);
 
 	// Support files opened with the O_APPEND flag.  To detect O_APPEND,
 	// use struct file's f_flags field and the O_APPEND bit.
@@ -1717,7 +1716,7 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 int
 ospfs_set_nwrites(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long nwrites)
 {
-	if(cmd == OSPFSIOCRASH)
+	if(cmd == CRASH)
 	{
 		ospfs_super->nwrites_to_crash = (int) nwrites;
 		return 0;
