@@ -2,6 +2,7 @@
 #define OSPFS_H
 // OSPFS Constants and Structure Definitions
 #include <linux/ioctl.h>
+s
 #define IOC_MAGIC 'k'
 #define OSPFSIOCRASH _IO(IOC_MAGIC, 0)
 

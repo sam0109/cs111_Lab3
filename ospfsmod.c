@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 
+
 /****************************************************************************
  * ospfsmod
  *
@@ -291,7 +292,7 @@ ospfs_mk_linux_inode(struct super_block *sb, ino_t ino)
 static int
 ospfs_fill_super(struct super_block *sb, void *data, int flags)
 {
-	ospfs_super->nwrites_to_crash = 20;
+	ospfs_super->nwrites_to_crash = -1;
 
 	if (ospfs_super->nwrites_to_crash == 0){
 		return 0;
@@ -1714,17 +1715,14 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 }
 
 int
-ospfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+ospfs_set_nwrites(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long nwrites)
 {
-	printk("writes to failure: %i\n", ospfs_super->nwrites_to_crash);
 	if(cmd == OSPFSIOCRASH)
 	{
-		ospfs_super->nwrites_to_crash = (int) arg;
-		printk("writes to failure: %i\n", ospfs_super->nwrites_to_crash);
+		ospfs_super->nwrites_to_crash = (int) nwrites;
 		return 0;
 	}
-	else
-		return -ENOTTY;
+	return -1;
 }
 
 
@@ -1745,7 +1743,7 @@ static struct file_operations ospfs_reg_file_ops = {
 	.llseek		= generic_file_llseek,
 	.read		= ospfs_read,
 	.write		= ospfs_write,
-	.ioctl      = ospfs_ioctl
+	.ioctl      = ospfs_set_nwrites
 };
 
 static struct inode_operations ospfs_dir_inode_ops = {
