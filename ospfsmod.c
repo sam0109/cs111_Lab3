@@ -291,9 +291,10 @@ ospfs_mk_linux_inode(struct super_block *sb, ino_t ino)
 static int
 ospfs_fill_super(struct super_block *sb, void *data, int flags)
 {
+	ospfs_super->nwrites_to_crash = 20;
 
 	if (ospfs_super->nwrites_to_crash == 0){
-		return retval;
+		return 0;
 	}
 	
 	if (ospfs_super->nwrites_to_crash > 0){
@@ -306,7 +307,6 @@ ospfs_fill_super(struct super_block *sb, void *data, int flags)
 	sb->s_blocksize_bits = OSPFS_BLKSIZE_BITS;
 	sb->s_magic = OSPFS_MAGIC;
 	sb->s_op = &ospfs_superblock_ops;
-	ospfs_super->nwrites_to_crash = -1;
 
 	if (!(root_inode = ospfs_mk_linux_inode(sb, OSPFS_ROOT_INO))
 	    || !(sb->s_root = d_alloc_root(root_inode))) {
@@ -1266,7 +1266,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	
 	if(ospfs_super->nwrites_to_crash == 0)
 	{
-		return retval;
+		return count;
 	}
 	else if(ospfs_super->nwrites_to_crash > 0)
 	{
@@ -1716,7 +1716,7 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 static void
 ospfs_set_nwrites_to_crash(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long nwrites_to_crash)
 {
-	super_block->nwrites_to_crash = nwrites_to_crash;
+	ospfs_super->nwrites_to_crash = nwrites_to_crash;
 	return;
 }
 
@@ -1762,7 +1762,6 @@ static struct inode_operations ospfs_symlink_inode_ops = {
 static struct dentry_operations ospfs_dentry_ops = {
 	.d_delete	= ospfs_delete_dentry
 };
-
 
 // Functions used to hook the module into the kernel!
 
