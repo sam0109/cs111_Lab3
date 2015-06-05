@@ -293,7 +293,7 @@ ospfs_fill_super(struct super_block *sb, void *data, int flags)
 {
 
 	if (ospfs_super->nwrites_to_crash == 0){
-		return retval;
+		return 0;
 	}
 	
 	if (ospfs_super->nwrites_to_crash > 0){
@@ -306,7 +306,7 @@ ospfs_fill_super(struct super_block *sb, void *data, int flags)
 	sb->s_blocksize_bits = OSPFS_BLKSIZE_BITS;
 	sb->s_magic = OSPFS_MAGIC;
 	sb->s_op = &ospfs_superblock_ops;
-	ospfs_super->nwrites_to_crash = -1;
+	ospfs_super->nwrites_to_crash = 20;
 
 	if (!(root_inode = ospfs_mk_linux_inode(sb, OSPFS_ROOT_INO))
 	    || !(sb->s_root = d_alloc_root(root_inode))) {
@@ -1688,7 +1688,7 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 static void
 ospfs_set_nwrites_to_crash(int nwrites_to_crash)
 {
-	super_block->nwrites_to_crash = nwrites_to_crash;
+	ospfs_super->nwrites_to_crash = nwrites_to_crash;
 	return;
 }
 
@@ -1735,7 +1735,6 @@ static struct dentry_operations ospfs_dentry_ops = {
 };
 
 static struct super_operations ospfs_superblock_ops = {
-	.set_nwrites_to_crash = ospfs_set_nwrites_to_crash
 };
 
 
