@@ -24,3 +24,5 @@ Email: sam.sobell@gmail.com
 #Extra credit problem: none
 
 # Add any other information you'd like us to know below this line.
+The TA told us it was optional to implement the symbolic link functions,
+so we decided not to implement them. We pass all 17 test cases.

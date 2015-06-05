@@ -1238,6 +1238,16 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 {
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
 	int retval = 0;
+	
+	if(ospfs_super->nwrites_to_crash == 0)
+	{
+		return retval;
+	}
+	else if(ospfs_super->nwrites_to_crash > 0)
+	{
+		ospfs_super->nwrites_to_crash--;
+	}
+	
 	size_t amount = 0;
 	printk("writes to failure: %i\n", ospfs_super->nwrites_to_crash);
 
@@ -1437,6 +1447,15 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 static int
 ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dentry) 
 {
+	if(ospfs_super->nwrites_to_crash == 0)
+	{
+		return 0;
+	}
+	else if(ospfs_super->nwrites_to_crash > 0)
+	{
+		ospfs_super->nwrites_to_crash--;
+	}	
+	
 	/* EXERCISE: Your code here. */
 	ospfs_direntry_t *new_entry = NULL;
 	ospfs_inode_t *file_oi = NULL;
@@ -1522,6 +1541,15 @@ find_free_inode()
 static int
 ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd)
 {
+	if(ospfs_super->nwrites_to_crash == 0)
+	{
+		return 0;
+	}
+	else if(ospfs_super->nwrites_to_crash > 0)
+	{
+		ospfs_super->nwrites_to_crash--;
+	}
+	
 	ospfs_inode_t *dir_oi = ospfs_inode(dir->i_ino);
 	uint32_t entry_ino = 0;
 	
