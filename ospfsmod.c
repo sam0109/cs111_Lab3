@@ -1713,11 +1713,18 @@ ospfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return (void *) 0;
 }
 
-static void
-ospfs_set_nwrites_to_crash(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long nwrites_to_crash)
+int
+ospfs_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	ospfs_super->nwrites_to_crash = nwrites_to_crash;
-	return;
+	printk("writes to failure: %i\n", ospfs_super->nwrites_to_crash);
+	if(cmd == OSPFSIOCRASH)
+	{
+		ospfs_super->nwrites_to_crash = (int) arg;
+		printk("writes to failure: %i\n", ospfs_super->nwrites_to_crash);
+		return 0;
+	}
+	else
+		return -ENOTTY;
 }
 
 
@@ -1738,7 +1745,7 @@ static struct file_operations ospfs_reg_file_ops = {
 	.llseek		= generic_file_llseek,
 	.read		= ospfs_read,
 	.write		= ospfs_write,
-	.ioctl      = ospfs_set_nwrites_to_crash
+	.ioctl      = ospfs_ioctl
 };
 
 static struct inode_operations ospfs_dir_inode_ops = {
