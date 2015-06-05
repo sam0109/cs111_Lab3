@@ -37,7 +37,7 @@ extern uint8_t ospfs_data[];
 extern uint32_t ospfs_length;
 
 // A pointer to the superblock; see ospfs.h for details on the struct.
-static ospfs_super_t * const ospfs_super =
+static ospfs_super_t * ospfs_super =
 	(ospfs_super_t *) &ospfs_data[OSPFS_BLKSIZE];
 
 static int change_size(ospfs_inode_t *oi, uint32_t want_size);
@@ -297,7 +297,7 @@ ospfs_fill_super(struct super_block *sb, void *data, int flags)
 	sb->s_blocksize_bits = OSPFS_BLKSIZE_BITS;
 	sb->s_magic = OSPFS_MAGIC;
 	sb->s_op = &ospfs_superblock_ops;
-	sb->nwrites_to_crash = -1;
+	ospfs_super->nwrites_to_crash = -1;
 
 	if (!(root_inode = ospfs_mk_linux_inode(sb, OSPFS_ROOT_INO))
 	    || !(sb->s_root = d_alloc_root(root_inode))) {
@@ -1239,6 +1239,7 @@ ospfs_write(struct file *filp, const char __user *buffer, size_t count, loff_t *
 	ospfs_inode_t *oi = ospfs_inode(filp->f_dentry->d_inode->i_ino);
 	int retval = 0;
 	size_t amount = 0;
+	printk("writes to failure: %i\n", ospfs_super->nwrites_to_crash);
 
 	// Support files opened with the O_APPEND flag.  To detect O_APPEND,
 	// use struct file's f_flags field and the O_APPEND bit.
